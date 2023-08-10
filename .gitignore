@@ -1,0 +1,11 @@
+linkedin_cookies.csv
+test.py
+localcred.py
+__pycache__/
+.DS_Store
+*.csv
+*.pkl
+*.json
+*.html
+test_inputs.py
+chromedriver-win64/
