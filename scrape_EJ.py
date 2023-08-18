@@ -13,7 +13,22 @@ import json
 
 
 def convert_to_numbs(str1, str2):
+    """
+    Convert distance and duration strings to numerical values.
+
+    Args:
+        str1 (str): The distance string.
+        str2 (str): The duration string.
+
+    Returns:
+        tuple: A tuple containing the converted distance and duration.
+
+    Note:
+        If both str1 and str2 are equal to 1, the function returns (1, 1).
+
+    """
     if str1 == 1 and str2 == 1:
+        # If distance and duration are both 1, return (1, 1)
         return (1, 1)
 
     # Remove all non-numeric and non-decimal point characters from str1
@@ -27,6 +42,7 @@ def convert_to_numbs(str1, str2):
     # strings to integers
     if len(words) == 4:
         if int(words[2]) < 10:
+            # If minutes is less than 10, convert it to two digits
             hours = int(words[0])
             minutes = int(words[2])
             total_minutes = hours * 100 + int("%02d" % minutes)
@@ -41,6 +57,21 @@ def convert_to_numbs(str1, str2):
 
 
 def get_distance(job_main_location, given_origin):
+    """
+    Get the distance and duration between two locations using the Google Maps Distance Matrix API.
+
+    Args:
+        job_main_location (str): The destination location.
+        given_origin (str): The origin location.
+
+    Returns:
+        tuple: A tuple containing the distance and duration between the two locations.
+
+    Note:
+        If the API request fails or the distance/duration is not found in the response,
+        the function returns (1, 1) as a default value.
+
+    """
     # Set up the URL for the Google Maps Distance Matrix API request
     url = "https://maps.googleapis.com/maps/api/distancematrix/json?units=metric"
     url += "&origins={}".format(given_origin)
@@ -75,14 +106,40 @@ def get_distance(job_main_location, given_origin):
         return 1, 1
     
 def dict_to_html_table(dictionary):
+    """
+    Convert a dictionary to an HTML table.
+
+    Args:
+        dictionary (dict): The dictionary to convert.
+
+    Returns:
+        str: The HTML representation of the dictionary as a table.
+
+    """
     table_html = "<table>\n"
     for key, value in dictionary.items():
+        # Add a new row to the table with key-value pairs
         table_html += f"<tr><td>{key}</td><td>{value}</td></tr>\n"
     table_html += "</table>"
     return table_html
 
 def save_html_table(html_content, file_path):
+    """
+    Save HTML content to a file.
+
+    Args:
+        html_content (str): The HTML content to be saved.
+        file_path (str): The file path to save the HTML content to.
+
+    Returns:
+        None
+
+    Note:
+        The function will overwrite the existing file if it already exists.
+
+    """
     with open(file_path, "w") as file:
+        # Open the file in write mode and write the HTML content to it
         file.write(html_content)
 
 
@@ -223,7 +280,7 @@ if sortby_choice is not None:
     if sortby_choice == "duration":
         df = df.sort_values(["duration_for_sorting"], ascending=[True])
       
-df.to_csv("temp_data22.csv", index=False)
+df.to_csv("temp_data.csv", index=False)
 # print(df)
 format_html_results.create_html_file(df)
 
