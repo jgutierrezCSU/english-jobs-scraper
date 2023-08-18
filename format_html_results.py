@@ -106,5 +106,5 @@ def create_html_file(df):
         </body>
             </html>
             """
-    with open("results.html", "w") as f:
+    with open("results22.html", "w") as f:
         f.write(html_table)
