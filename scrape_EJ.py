@@ -124,7 +124,6 @@ sortby_choice="duration"
 results = []
 cities_calculated_dict={}
 page_count=1
-tmp_count_cities=0
 for page_count in range(num_pages_to_search):
     #js-jobs or "external" jobs have h3 title tags
     job_posts_jsjobs = soup.find_all("div", class_="row job js-job")
@@ -138,14 +137,11 @@ for page_count in range(num_pages_to_search):
             distance, duration = get_distance(job_main_location, given_origin)
             #Fisrt time calcuating, make key value pair for later retrieval(value = tupple)
             cities_calculated_dict[job_main_location]=(distance,duration)
-            # print("New city",type(distance),distance,type(duration),duration)
         else:
              #City already in list
              #Get city values(a tuple)
              distance_duration_tup = cities_calculated_dict[job_main_location]
              distance, duration = distance_duration_tup[0],distance_duration_tup[1]
-             tmp_count_cities+=1
-            #  print("old city", type(distance),distance,type(duration),duration)
 
         #remove string chars and convert to integers for sorting        
         dist_km, dist_mins = convert_to_numbs(distance, duration)
@@ -184,14 +180,11 @@ for page_count in range(num_pages_to_search):
             distance, duration = get_distance(job_main_location, given_origin)
             #Fisrt time calcuating, make key value pair for later retrieval(value = tupple)
             cities_calculated_dict[job_main_location]=(distance,duration)
-            # print("New city",type(distance),distance,type(duration),duration)
         else:
              #City already in list
              #Get city values(a tuple)
              distance_duration_tup = cities_calculated_dict[job_main_location]
              distance, duration = distance_duration_tup[0],distance_duration_tup[1]
-            #  print("New city",type(distance),distance,type(duration),duration)
-             tmp_count_cities+=1
 
 
         #remove string chars and convert to integers for sorting
@@ -227,7 +220,6 @@ for page_count in range(num_pages_to_search):
     soup = BeautifulSoup(content, "html.parser")
 
 df = pd.DataFrame(results)
-print(tmp_count_cities)
 
 
 
