@@ -7,42 +7,70 @@ import json
 import localcred
 import format_html_results
 import pandas as pd
-
-
-# Docs https://developers.google.com/maps/documentation/javascript/distancematrix#transit_options
 import requests
 import json
 
 
 def convert_to_numbs(str1, str2):
-    if str1 == 1 and str2 ==1:
-        return (1 , 1) 
+    """
+    Convert distance and duration strings to numerical values.
+
+    Args:
+        str1 (str): The distance string.
+        str2 (str): The duration string.
+
+    Returns:
+        tuple: A tuple containing the converted distance and duration.
+
+    Note:
+        If both str1 and str2 are equal to 1, the function returns (1, 1).
+
+    """
+    if str1 == 1 and str2 == 1:
+        # If distance and duration are both 1, return (1, 1)
+        return (1, 1)
+
     # Remove all non-numeric and non-decimal point characters from str1
     # and convert it to a float
     num1 = float("".join(filter(lambda x: x.isdigit() or x == ".", str1)))
 
     # Split the time string into a list of words
     words = str2.split()
+
     # Check if "mins" is less than 10, and convert the "hour" and "mins"
-    #  strings to integers
+    # strings to integers
     if len(words) == 4:
         if int(words[2]) < 10:
+            # If minutes is less than 10, convert it to two digits
             hours = int(words[0])
             minutes = int(words[2])
             total_minutes = hours * 100 + int("%02d" % minutes)
-
-        # if mins not less than 10
         else:
             total_minutes = int(words[0]) * 100 + int(words[2])
 
-    # under an hour
+    # If it's under an hour
     if len(words) == 2:
         total_minutes = int(words[0])
 
     return (num1, total_minutes)
 
+# Docs https://developers.google.com/maps/documentation/javascript/distancematrix#transit_options
 def get_distance(job_main_location, given_origin):
+    """
+    Get the distance and duration between two locations using the Google Maps Distance Matrix API.
 
+    Args:
+        job_main_location (str): The destination location.
+        given_origin (str): The origin location.
+
+    Returns:
+        tuple: A tuple containing the distance and duration between the two locations.
+
+    Note:
+        If the API request fails or the distance/duration is not found in the response,
+        the function returns (1, 1) as a default value.
+
+    """
     # Set up the URL for the Google Maps Distance Matrix API request
     url = "https://maps.googleapis.com/maps/api/distancematrix/json?units=metric"
     url += "&origins={}".format(given_origin)
@@ -77,17 +105,41 @@ def get_distance(job_main_location, given_origin):
         return 1, 1
     
 def dict_to_html_table(dictionary):
+    """
+    Convert a dictionary to an HTML table.
+
+    Args:
+        dictionary (dict): The dictionary to convert.
+
+    Returns:
+        str: The HTML representation of the dictionary as a table.
+
+    """
     table_html = "<table>\n"
     for key, value in dictionary.items():
+        # Add a new row to the table with key-value pairs
         table_html += f"<tr><td>{key}</td><td>{value}</td></tr>\n"
     table_html += "</table>"
     return table_html
 
 def save_html_table(html_content, file_path):
+    """
+    Save HTML content to a file.
+
+    Args:
+        html_content (str): The HTML content to be saved.
+        file_path (str): The file path to save the HTML content to.
+
+    Returns:
+        None
+
+    Note:
+        The function will overwrite the existing file if it already exists.
+
+    """
     with open(file_path, "w") as file:
+        # Open the file in write mode and write the HTML content to it
         file.write(html_content)
-
-
 
 
 # Configure Chrome options for headless browsing
@@ -95,7 +147,7 @@ chrome_options = Options()
 chrome_options.add_argument("--headless")  # Ensure GUI is off
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
-#remove error logs
+# Remove error logs
 chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
 # Set path to chromedriver executable as per your configuration
 chromedriver_path = "./chromedriver"
@@ -108,48 +160,48 @@ driver.get(url)
 # Extract desired information from the webpage
 content = driver.page_source
 soup = BeautifulSoup(content, "html.parser")
-#get number of pages to travers 
+# Get number of pages to traverse
 all_jobs_found = int(soup.find("span", class_="count").text.strip())
-total_num_of_pages =all_jobs_found/20
+total_num_of_pages = all_jobs_found / 20
 print("Number of pages available:", total_num_of_pages)
 print("Enter number of pages to search (20 per page): ")
-# num_pages_to_search = int(input())
-num_pages_to_search = 138
-given_origin="Abstatt"
-# print("Sort by?: : ")
-# sortby_choice=input()
-sortby_choice="duration"
+num_pages_to_search = int(input())
+print("Give origin for mapping:")
+given_origin = input()
+print("Sort by? (duration only option for now): ")
+sortby_choice = input()
 
 # Site has 2 different elements we have to traverse , "row job js-job" and "row job jobinternal"
 results = []
 cities_calculated_dict={}
 page_count=1
 for page_count in range(num_pages_to_search):
-    #js-jobs or "external" jobs have h3 title tags
+    # js-jobs or "external" jobs have h3 title tags
     job_posts_jsjobs = soup.find_all("div", class_="row job js-job")
     for post in job_posts_jsjobs:
         # Extract the desired information from each post
         title = post.find("h3", class_="title").text.strip()
         company = post.find("i", class_="fa-li fa fa-bank").find_next_sibling(string=True).strip()
         job_main_location = post.find("i", class_="fa-li fa fa-map-marker").find_next_sibling(string=True).strip()
-        #check if city alreay in list
+
+        # check if city already in list
         if job_main_location not in cities_calculated_dict:
             distance, duration = get_distance(job_main_location, given_origin)
-            #Fisrt time calcuating, make key value pair for later retrieval(value = tupple)
-            cities_calculated_dict[job_main_location]=(distance,duration)
+            # First time calculating, make key value pair for later retrieval (value = tuple)
+            cities_calculated_dict[job_main_location] = (distance, duration)
         else:
-             #City already in list
-             #Get city values(a tuple)
-             distance_duration_tup = cities_calculated_dict[job_main_location]
-             distance, duration = distance_duration_tup[0],distance_duration_tup[1]
+            # City already in list
+            # Get city values (a tuple)
+            distance_duration_tup = cities_calculated_dict[job_main_location]
+            distance, duration = distance_duration_tup[0], distance_duration_tup[1]
 
-        #remove string chars and convert to integers for sorting        
+        # remove string chars and convert to integers for sorting
         dist_km, dist_mins = convert_to_numbs(distance, duration)
-        #if No route was found (returnd any 1's) home office
+        # if No route was found (returned any 1's), home office
         if distance == 1 and duration == 1:
-                 distance, duration = "Home Office" , "Home Office"      
-        summary= post.find("div", class_="content").text.strip()
-        link= post.a['href']
+            distance, duration = "Home Office", "Home Office"
+        summary = post.find("div", class_="content").text.strip()
+        link = post.a['href']
         # Convert relative links to absolute links
         link = urljoin(url, link)
 
@@ -158,43 +210,43 @@ for page_count in range(num_pages_to_search):
             "title": title,
             "company": company,
             "location": job_main_location,
-            "distance":distance,
-            "duration":duration,
-            "duration_for_sorting":dist_mins,
+            "distance": distance,
+            "duration": duration,
+            "duration_for_sorting": dist_mins,
             "summary": summary,
-            "link" : link
+            "link": link
         }
 
         # Append the dictionary to the results list
         results.append(post_dict)
 
-    #jobinternal titles have h2 elements
+    # jobinternal titles have h2 elements
     job_posts_jobinternal = soup.find_all("div", class_="row job jobinternal")
     for post in job_posts_jobinternal:
         # Extract the desired information from each post
         title = post.find("h2", class_="title").text.strip()
         company = post.find("i", class_="fa-li fa fa-bank").find_next_sibling(string=True).strip()
         job_main_location = post.find("i", class_="fa-li fa fa-map-marker").find_next_sibling(string=True).strip()
-        #check if city alreay in list
+
+        # check if city already in list
         if job_main_location not in cities_calculated_dict:
             distance, duration = get_distance(job_main_location, given_origin)
-            #Fisrt time calcuating, make key value pair for later retrieval(value = tupple)
-            cities_calculated_dict[job_main_location]=(distance,duration)
+            # First time calculating, make key value pair for later retrieval (value = tuple)
+            cities_calculated_dict[job_main_location] = (distance, duration)
         else:
-             #City already in list
-             #Get city values(a tuple)
-             distance_duration_tup = cities_calculated_dict[job_main_location]
-             distance, duration = distance_duration_tup[0],distance_duration_tup[1]
+            # City already in list
+            # Get city values (a tuple)
+            distance_duration_tup = cities_calculated_dict[job_main_location]
+            distance, duration = distance_duration_tup[0], distance_duration_tup[1]
 
-
-        #remove string chars and convert to integers for sorting
+        # remove string chars and convert to integers for sorting
         dist_km, dist_mins = convert_to_numbs(distance, duration)
-        #if No route was found (returnd any 1's) home office
+        # if No route was found (returned any 1's), home office
         if distance == 1 and duration == 1:
-                 distance, duration = "Home Office" , "Home Office" 
-        summary= post.find("div", class_="content").text.strip()
-        link= 'https://englishjobs.de' + post.a['href']
-        
+            distance, duration = "Home Office", "Home Office"
+        summary = post.find("div", class_="content").text.strip()
+        link = 'https://englishjobs.de' + post.a['href']
+
         # Convert relative links to absolute links
         link = urljoin(url, link)
 
@@ -203,26 +255,23 @@ for page_count in range(num_pages_to_search):
             "title": title,
             "company": company,
             "location": job_main_location,
-            "distance":distance,
-            "duration":duration,            
-            "duration_for_sorting":dist_mins,
+            "distance": distance,
+            "duration": duration,
+            "duration_for_sorting": dist_mins,
             "summary": summary,
-            "link" : link
-
+            "link": link
         }
 
         # Append the dictionary to the results list
         results.append(post_dict)
-    #get data from next page
-    url = "https://englishjobs.de/in/baden-wuerttemberg?q=It&page="+ str(page_count+1)
+
+    # get data from next page
+    url = "https://englishjobs.de/in/baden-wuerttemberg?q=It&page=" + str(page_count + 1)
     driver.get(url)
     content = driver.page_source
     soup = BeautifulSoup(content, "html.parser")
 
 df = pd.DataFrame(results)
-
-
-
 
 #Sort Option given
 if sortby_choice is not None:
