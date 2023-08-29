@@ -7,7 +7,6 @@ import json
 import localcred
 import format_html_results
 import pandas as pd
-# Docs https://developers.google.com/maps/documentation/javascript/distancematrix#transit_options
 import requests
 import json
 
@@ -55,7 +54,7 @@ def convert_to_numbs(str1, str2):
 
     return (num1, total_minutes)
 
-
+# Docs https://developers.google.com/maps/documentation/javascript/distancematrix#transit_options
 def get_distance(job_main_location, given_origin):
     """
     Get the distance and duration between two locations using the Google Maps Distance Matrix API.
