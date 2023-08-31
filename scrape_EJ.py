@@ -1,4 +1,5 @@
 from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -88,7 +89,7 @@ def get_distance(job_main_location, given_origin):
         if 'distance' in response_json["rows"][0]["elements"][0]:
             distance = response_json["rows"][0]["elements"][0]["distance"]["text"]
         else:
-            print("Distance not found in API response")
+            print("Distance not found in API response, possibly remote job")
             return 1, 1
 
         # Check if the 'duration' key exists in the response
@@ -141,6 +142,14 @@ def save_html_table(html_content, file_path):
         # Open the file in write mode and write the HTML content to it
         file.write(html_content)
 
+def separate_string_by_spaces(string):
+    # Split the string by spaces
+    word_list = string.split()
+
+    # Capitalize the first letter of each word
+    capitalized_words = [word.capitalize() for word in word_list]
+
+    return capitalized_words
 
 # Configure Chrome options for headless browsing
 chrome_options = Options()
@@ -152,7 +161,7 @@ chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
 # Set path to chromedriver executable as per your configuration
 chromedriver_path = "./chromedriver"
 # Set Chrome options and initialize the driver
-driver = webdriver.Chrome(executable_path=chromedriver_path, options=chrome_options)
+driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
 # URL to scrape
 url = "https://englishjobs.de/in/baden-wuerttemberg?q=It"
 # Perform scraping
@@ -170,17 +179,33 @@ print("Give origin for mapping:")
 given_origin = input()
 print("Sort by? (duration only option for now): ")
 sortby_choice = input()
+print("Words from Title to exclude? (seperated by spaces )")
+exclude_words_lst=separate_string_by_spaces(input())
+print("Looking for jobs .....")
+
 
 # Site has 2 different elements we have to traverse , "row job js-job" and "row job jobinternal"
 results = []
 cities_calculated_dict={}
 page_count=1
 for page_count in range(num_pages_to_search):
-    # js-jobs or "external" jobs have h3 title tags
+    # Get job posts for "external" jobs (js-jobs)
     job_posts_jsjobs = soup.find_all("div", class_="row job js-job")
-    for post in job_posts_jsjobs:
+    
+    # Get job posts for "jobinternal" jobs
+    job_posts_jobinternal = soup.find_all("div", class_="row job jobinternal")
+
+    # Combine the job posts from both types into a single list
+    all_job_posts = job_posts_jsjobs + job_posts_jobinternal
+
+    for post in all_job_posts:
         # Extract the desired information from each post
-        title = post.find("h3", class_="title").text.strip()
+        title = post.find("h3" if "js-job" in post["class"] else "h2", class_="title").text.strip()
+        #seperate title by words for comparison
+        title_to_lst=separate_string_by_spaces(title)
+        # print(title_to_lst," :::::")
+        if any(word in exclude_words_lst for word in title_to_lst):
+            continue  # Skip processing the current job post and move to the next iteration
         company = post.find("i", class_="fa-li fa fa-bank").find_next_sibling(string=True).strip()
         job_main_location = post.find("i", class_="fa-li fa fa-map-marker").find_next_sibling(string=True).strip()
 
@@ -202,53 +227,13 @@ for page_count in range(num_pages_to_search):
             distance, duration = "Home Office", "Home Office"
         summary = post.find("div", class_="content").text.strip()
         link = post.a['href']
-        # Convert relative links to absolute links
-        link = urljoin(url, link)
-
-        # Create a dictionary for the current post
-        post_dict = {
-            "title": title,
-            "company": company,
-            "location": job_main_location,
-            "distance": distance,
-            "duration": duration,
-            "duration_for_sorting": dist_mins,
-            "summary": summary,
-            "link": link
-        }
-
-        # Append the dictionary to the results list
-        results.append(post_dict)
-
-    # jobinternal titles have h2 elements
-    job_posts_jobinternal = soup.find_all("div", class_="row job jobinternal")
-    for post in job_posts_jobinternal:
-        # Extract the desired information from each post
-        title = post.find("h2", class_="title").text.strip()
-        company = post.find("i", class_="fa-li fa fa-bank").find_next_sibling(string=True).strip()
-        job_main_location = post.find("i", class_="fa-li fa fa-map-marker").find_next_sibling(string=True).strip()
-
-        # check if city already in list
-        if job_main_location not in cities_calculated_dict:
-            distance, duration = get_distance(job_main_location, given_origin)
-            # First time calculating, make key value pair for later retrieval (value = tuple)
-            cities_calculated_dict[job_main_location] = (distance, duration)
+        
+        if "js-job" in post["class"]:
+            # For "external" jobs, convert relative links to absolute links
+            link = urljoin(url, link)
         else:
-            # City already in list
-            # Get city values (a tuple)
-            distance_duration_tup = cities_calculated_dict[job_main_location]
-            distance, duration = distance_duration_tup[0], distance_duration_tup[1]
-
-        # remove string chars and convert to integers for sorting
-        dist_km, dist_mins = convert_to_numbs(distance, duration)
-        # if No route was found (returned any 1's), home office
-        if distance == 1 and duration == 1:
-            distance, duration = "Home Office", "Home Office"
-        summary = post.find("div", class_="content").text.strip()
-        link = 'https://englishjobs.de' + post.a['href']
-
-        # Convert relative links to absolute links
-        link = urljoin(url, link)
+            # For "jobinternal" jobs, prepend the base URL
+            link = 'https://englishjobs.de' + link
 
         # Create a dictionary for the current post
         post_dict = {
@@ -265,12 +250,11 @@ for page_count in range(num_pages_to_search):
         # Append the dictionary to the results list
         results.append(post_dict)
 
-    # get data from next page
+    # Get data from the next page
     url = "https://englishjobs.de/in/baden-wuerttemberg?q=It&page=" + str(page_count + 1)
     driver.get(url)
     content = driver.page_source
     soup = BeautifulSoup(content, "html.parser")
-
 df = pd.DataFrame(results)
 
 #Sort Option given
